@@ -1,0 +1,10 @@
+{
+  "name": "Duka Ledger",
+  "short_name": "Duka Ledger",
+  "description": "Sales and stock tracker for small shops. Works offline.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f3",
+  "theme_color": "#0f2a20",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

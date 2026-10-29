@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duka Ledger · Sales & stock for small shops</title>
+<meta name="description" content="Offline-first sales and stock tracker for small shops. Record sales in seconds, track stock and profit in CDF or USD, works without internet.">
+<meta name="theme-color" content="#0f2a20">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta property="og:title" content="Duka Ledger — sales & stock tracker for small shops">
+<meta property="og:description" content="Offline-first PWA: record sales, track stock and profit in CDF or USD. Built by Patrick Safari.">
+<style>
+:root{
+  --bg:#f4f6f3; --panel:#ffffff; --ink:#10231c; --muted:#5c6f66; --line:#dfe6e1;
+  --green:#1f8a5b; --green-2:#e3f3ea; --amber:#e8962e; --amber-2:#fdf0dc; --red:#c8443a; --red-2:#fbe6e4;
+  --radius:14px; --shadow:0 10px 30px -18px rgba(16,35,28,.45);
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --bg:#0b1612; --panel:#12211b; --ink:#e8f1ec; --muted:#93a79d; --line:#22362d;
+  --green:#3fbf86; --green-2:#173528; --amber:#f2ac4f; --amber-2:#3a2a12; --red:#ef6b60; --red-2:#3a1a17; } }
+:root[data-theme="dark"]{ --bg:#0b1612; --panel:#12211b; --ink:#e8f1ec; --muted:#93a79d; --line:#22362d;
+  --green:#3fbf86; --green-2:#173528; --amber:#f2ac4f; --amber-2:#3a2a12; --red:#ef6b60; --red-2:#3a1a17; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15.5px;line-height:1.5;padding-bottom:84px}
+button,input,select{font:inherit;color:inherit}
+.wrap{width:min(1120px,100% - 32px);margin-inline:auto}
+header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:12px;height:62px}
+.brand{display:flex;align-items:center;gap:10px;white-space:nowrap;font-weight:800;font-size:1.1rem;letter-spacing:-.01em}
+.brand img{width:32px;height:32px}
+.brand small{display:block;font-weight:500;font-size:.72rem;color:var(--muted);letter-spacing:0}
+.spacer{flex:1}
+.seg{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:none;padding:6px 11px;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--green);color:#fff}
+nav.tabs{display:flex;gap:4px;padding:8px 0 10px}
+nav.tabs button{border:0;background:none;padding:8px 14px;border-radius:999px;font-weight:600;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:7px}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+nav.tabs svg{width:18px;height:18px}
+main{padding:22px 0}
+section[hidden]{display:none}
+h2{font-size:1.35rem;letter-spacing:-.02em;margin-bottom:4px}
+.sub{color:var(--muted);margin-bottom:18px}
+.grid{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.kpi .label{font-size:.82rem;color:var(--muted);font-weight:600}
+.kpi .val{font-size:1.55rem;font-weight:800;letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .hint{font-size:.78rem;color:var(--muted)}
+.two{grid-template-columns:1.6fr 1fr;margin-top:14px}
+.card h3{font-size:1rem;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card h3 span{font-size:.78rem;color:var(--muted);font-weight:500}
+.chart{width:100%;height:220px;display:block}
+.chart text{font-size:10px;fill:var(--muted)}
+.list{list-style:none;display:grid;gap:8px}
+.list li{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:.92rem}
+.meter{height:6px;background:var(--line);border-radius:6px;margin-top:4px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--green);border-radius:6px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:.78rem;font-weight:700}
+.pill.low{background:var(--red-2);color:var(--red)} .pill.ok{background:var(--green-2);color:var(--green)} .pill.warn{background:var(--amber-2);color:var(--amber)}
+.empty{color:var(--muted);font-size:.9rem;padding:8px 0}
+/* Sell */
+.sell{grid-template-columns:1.5fr 1fr;align-items:start}
+.search{width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);margin-bottom:12px}
+.products{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.prod{text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:12px;cursor:pointer;transition:transform .12s,border-color .12s}
+.prod:hover{transform:translateY(-2px);border-color:var(--green)}
+.prod:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.prod b{display:block;font-size:.95rem;line-height:1.25}
+.prod .p{font-weight:800;margin-top:6px;font-variant-numeric:tabular-nums}
+.prod .s{font-size:.78rem;color:var(--muted)}
+.cart{position:sticky;top:130px}
+.cart-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line);font-size:.92rem}
+.qty{display:flex;align-items:center;border:1px solid var(--line);border-radius:999px}
+.qty button{border:0;background:none;width:28px;height:28px;cursor:pointer;font-weight:800}
+.qty span{min-width:20px;text-align:center;font-variant-numeric:tabular-nums}
+.total{display:flex;justify-content:space-between;font-weight:800;font-size:1.25rem;margin:14px 0 10px}
+.pay{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+.pay button{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 4px;font-size:.82rem;font-weight:600;cursor:pointer}
+.pay button[aria-pressed="true"]{border-color:var(--green);background:var(--green-2);color:var(--green)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:11px 16px;font-weight:700;cursor:pointer;background:var(--green);color:#fff}
+.btn.block{width:100%}
+.btn.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:var(--red-2);color:var(--red)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;opacity:0;width:max-content;max-width:calc(100% - 32px);text-align:center;transition:.25s;pointer-events:none;z-index:50}
+.toast.show{opacity:1;transform:translateX(-50%)}
+/* Stock & history tables */
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th{text-align:left;font-size:.76rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 6px;border-bottom:1px solid var(--line)}
+td{padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+td input{width:100%;min-width:70px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-variant-numeric:tabular-nums}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+.form{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:8px;margin-top:14px}
+.form input{padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);width:100%}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
+.toolbar label{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--muted)}
+.toolbar input{width:110px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.sale{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:.92rem}
+.sale time{color:var(--muted);font-size:.82rem;white-space:nowrap}
+.sale .items{color:var(--muted)}
+.icon-btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:.8rem}
+footer{color:var(--muted);font-size:.82rem;padding:24px 0 10px;text-align:center}
+footer a{color:inherit}
+@media (max-width:860px){
+  .kpis{grid-template-columns:repeat(2,1fr)} .two,.sell{grid-template-columns:1fr}
+  .cart{position:static}
+  header{backdrop-filter:none;background:var(--bg)}
+  td:first-child input{min-width:140px}
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--panel);border-top:1px solid var(--line);justify-content:space-around;padding:8px 6px calc(8px + env(safe-area-inset-bottom))}
+  nav.tabs button{flex-direction:column;gap:2px;font-size:.72rem;padding:6px 8px;border-radius:10px}
+  .form{grid-template-columns:1fr 1fr} .form input:first-child{grid-column:1/-1}
+  .brand small{display:none}
+}
+@media (max-width:420px){ .kpi .val{font-size:1.25rem} .sale{grid-template-columns:1fr auto} .sale time{grid-column:1/-1} }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <div class="brand"><img src="icon.svg" alt=""><div>Duka Ledger<small data-i="tagline">Sales &amp; stock for small shops</small></div></div>
+    <div class="spacer"></div>
+    <div class="seg" role="group" aria-label="Currency"><button data-cur="CDF">CDF</button><button data-cur="USD">USD</button></div>
+    <div class="seg" role="group" aria-label="Language"><button data-lang="en">EN</button><button data-lang="fr">FR</button></div>
+  </div>
+  <div class="wrap">
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="dash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/></svg><span data-i="tDash">Dashboard</span></button>
+      <button role="tab" data-tab="sell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.4a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H6"/></svg><span data-i="tSell">Sell</span></button>
+      <button role="tab" data-tab="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg><span data-i="tStock">Stock</span></button>
+      <button role="tab" data-tab="hist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span data-i="tHist">History</span></button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- DASHBOARD -->
+  <section id="dash">
+    <h2 data-i="dashTitle">Today at a glance</h2>
+    <p class="sub" id="dashSub"></p>
+    <div class="grid kpis">
+      <div class="card kpi"><div class="label" data-i="kRev">Revenue today</div><div class="val" id="kRev">–</div><div class="hint" id="kRevHint"></div></div>
+      <div class="card kpi"><div class="label" data-i="kProfit">Profit today</div><div class="val" id="kProfit">–</div><div class="hint" id="kMargin"></div></div>
+      <div class="card kpi"><div class="label" data-i="kSales">Sales today</div><div class="val" id="kSales">–</div><div class="hint" id="kBasket"></div></div>
+      <div class="card kpi"><div class="label" data-i="kWeek">Last 7 days</div><div class="val" id="kWeek">–</div><div class="hint" id="kWeekHint"></div></div>
+    </div>
+    <div class="grid two">
+      <div class="card"><h3><span style="font-size:1rem;color:var(--ink);font-weight:700" data-i="chartTitle">Revenue, last 14 days</span><span id="chartNote"></span></h3><svg class="chart" id="chart" role="img" aria-label="Revenue chart"></svg></div>
+      <div class="card"><h3 data-i="lowTitle">Low stock</h3><ul class="list" id="lowList"></ul></div>
+    </div>
+    <div class="grid two">
+      <div class="card"><h3><span style="font-size:1rem;color:var(--ink);font-weight:700" data-i="topTitle">Best sellers (30 days)</span></h3><ul class="list" id="topList"></ul></div>
+      <div class="card"><h3 data-i="payTitle">How customers pay (30 days)</h3><ul class="list" id="payList"></ul></div>
+    </div>
+  </section>
+
+  <!-- SELL -->
+  <section id="sell" hidden>
+    <h2 data-i="sellTitle">New sale</h2>
+    <p class="sub" data-i="sellSub">Tap a product to add it. Stock updates as soon as you finish the sale.</p>
+    <div class="grid sell">
+      <div>
+        <input class="search" id="search" type="search" data-ph="searchPh" placeholder="Search products…">
+        <div class="products" id="prodGrid"></div>
+      </div>
+      <aside class="card cart">
+        <h3 data-i="cartTitle">Current sale</h3>
+        <div id="cartRows"></div>
+        <div class="total"><span data-i="total">Total</span><span id="cartTotal">0</span></div>
+        <div class="pay" id="payBtns">
+          <button data-pay="cash" aria-pressed="true" data-i="cash">Cash</button>
+          <button data-pay="mobile" data-i="mobile">Mobile Money</button>
+          <button data-pay="credit" data-i="credit">On credit</button>
+        </div>
+        <button class="btn block" id="finish" disabled data-i="finish">Finish sale</button>
+      </aside>
+    </div>
+  </section>
+
+  <!-- STOCK -->
+  <section id="stock" hidden>
+    <h2 data-i="stockTitle">Products &amp; stock</h2>
+    <p class="sub" data-i="stockSub">Prices are saved in Congolese francs (CDF). Edit any cell; changes save automatically.</p>
+    <div class="card">
+      <div class="tablewrap"><table>
+        <thead><tr><th data-i="colName">Product</th><th class="num" data-i="colPrice">Price</th><th class="num" data-i="colCost">Cost</th><th class="num" data-i="colStock">In stock</th><th class="num" data-i="colMin">Alert at</th><th></th></tr></thead>
+        <tbody id="stockBody"></tbody>
+      </table></div>
+      <form class="form" id="addForm">
+        <input name="name" required data-ph="phName" placeholder="New product name">
+        <input name="price" type="number" min="0" step="50" required data-ph="phPrice" placeholder="Price (CDF)">
+        <input name="cost" type="number" min="0" step="50" data-ph="phCost" placeholder="Cost (CDF)">
+        <input name="stock" type="number" min="0" step="1" data-ph="phStock" placeholder="Stock">
+        <input name="min" type="number" min="0" step="1" data-ph="phMin" placeholder="Alert at">
+        <button class="btn" data-i="add">Add</button>
+      </form>
+    </div>
+    <div class="toolbar">
+      <label><span data-i="rate">Exchange rate (CDF per 1 USD)</span><input id="rate" type="number" min="1" step="10"></label>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="demoBtn" data-i="demo">Load demo data</button>
+      <button class="btn danger" id="resetBtn" data-i="reset">Erase all data</button>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section id="hist" hidden>
+    <h2 data-i="histTitle">Sales history</h2>
+    <p class="sub" data-i="histSub">Every sale, newest first. Voiding a sale puts the items back in stock.</p>
+    <div class="toolbar" style="margin:0 0 12px">
+      <button class="btn ghost" id="csvBtn" data-i="csv">Export CSV</button>
+      <span class="spacer"></span><span id="histCount" class="sub" style="margin:0"></span>
+    </div>
+    <div class="card" id="histList"></div>
+  </section>
+
+  <footer><span data-i="foot">Works offline · Your data stays on this device</span> · <a href="https://github.com/PatrickSafari840/duka-ledger">GitHub</a> · <span data-i="by">Built by</span> <a href="https://patricksafari840.github.io/patrick_safari_portfolio/">Patrick Safari</a></footer>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+'use strict';
+/* ---------- i18n ---------- */
+const I18N = {
+  en:{tagline:'Sales & stock for small shops',tDash:'Dashboard',tSell:'Sell',tStock:'Stock',tHist:'History',dashTitle:'Today at a glance',kRev:'Revenue today',kProfit:'Profit today',kSales:'Sales today',kWeek:'Last 7 days',chartTitle:'Revenue, last 14 days',lowTitle:'Low stock',topTitle:'Best sellers (30 days)',payTitle:'How customers pay (30 days)',sellTitle:'New sale',sellSub:'Tap a product to add it. Stock updates as soon as you finish the sale.',searchPh:'Search products…',cartTitle:'Current sale',total:'Total',cash:'Cash',mobile:'Mobile Money',credit:'On credit',finish:'Finish sale',stockTitle:'Products & stock',stockSub:'Prices are saved in Congolese francs (CDF). Edit any cell; changes save automatically.',colName:'Product',colPrice:'Price',colCost:'Cost',colStock:'In stock',colMin:'Alert at',phName:'New product name',phPrice:'Price (CDF)',phCost:'Cost (CDF)',phStock:'Stock',phMin:'Alert at',add:'Add',rate:'Exchange rate (CDF per 1 USD)',demo:'Load demo data',reset:'Erase all data',histTitle:'Sales history',histSub:'Every sale, newest first. Voiding a sale puts the items back in stock.',csv:'Export CSV',foot:'Works offline · Your data stays on this device',by:'Built by',
+    emptyCart:'No items yet.',noLow:'All products are well stocked.',noSales:'No sales yet. Record one in the Sell tab, or load the demo data.',left:'left',inStock:'in stock',out:'Out of stock',margin:'margin',avg:'avg. sale',vsPrev:'vs previous 7 days',sold:'Sale recorded',voided:'Sale voided, stock restored',added:'Product added',demoLoaded:'Demo data loaded',confirmReset:'Click again to erase everything',erased:'All data erased',voidBtn:'Void',del:'Remove',restock:'+10',items:'items',salesN:'sales',yesterday:'vs yesterday',noData:'No data yet',dateFmt:'en-GB',welcome:'Demo data loaded so you can explore. Erase it in the Stock tab.'},
+  fr:{tagline:'Ventes et stock pour petits commerces',tDash:'Tableau',tSell:'Vendre',tStock:'Stock',tHist:'Historique',dashTitle:"Aujourd'hui en un coup d'œil",kRev:"Chiffre d'affaires du jour",kProfit:'Bénéfice du jour',kSales:'Ventes du jour',kWeek:'7 derniers jours',chartTitle:"Chiffre d'affaires, 14 derniers jours",lowTitle:'Stock faible',topTitle:'Meilleures ventes (30 jours)',payTitle:'Moyens de paiement (30 jours)',sellTitle:'Nouvelle vente',sellSub:"Touchez un produit pour l'ajouter. Le stock se met à jour dès que la vente est terminée.",searchPh:'Rechercher un produit…',cartTitle:'Vente en cours',total:'Total',cash:'Espèces',mobile:'Mobile Money',credit:'À crédit',finish:'Terminer la vente',stockTitle:'Produits et stock',stockSub:'Les prix sont enregistrés en francs congolais (CDF). Modifiez une cellule : tout est enregistré automatiquement.',colName:'Produit',colPrice:'Prix',colCost:'Coût',colStock:'En stock',colMin:'Alerte à',phName:'Nom du nouveau produit',phPrice:'Prix (CDF)',phCost:'Coût (CDF)',phStock:'Stock',phMin:'Alerte à',add:'Ajouter',rate:'Taux de change (CDF pour 1 USD)',demo:'Charger les données démo',reset:'Tout effacer',histTitle:'Historique des ventes',histSub:'Toutes les ventes, les plus récentes en premier. Annuler une vente remet les articles en stock.',csv:'Exporter en CSV',foot:'Fonctionne hors ligne · Vos données restent sur cet appareil',by:'Créé par',
+    emptyCart:"Aucun article pour l'instant.",noLow:'Tous les produits sont bien approvisionnés.',noSales:"Aucune vente pour l'instant. Enregistrez-en une dans l'onglet Vendre ou chargez les données démo.",left:'restant(s)',inStock:'en stock',out:'Rupture de stock',margin:'marge',avg:'vente moy.',vsPrev:'vs 7 jours précédents',sold:'Vente enregistrée',voided:'Vente annulée, stock rétabli',added:'Produit ajouté',demoLoaded:'Données démo chargées',confirmReset:'Cliquez encore pour tout effacer',erased:'Toutes les données ont été effacées',voidBtn:'Annuler',del:'Retirer',restock:'+10',items:'articles',salesN:'ventes',yesterday:'vs hier',noData:'Pas encore de données',dateFmt:'fr-FR',welcome:"Données démo chargées pour la découverte. Effacez-les dans l'onglet Stock."}
+};
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('duka.'+k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem('duka.'+k, JSON.stringify(v)); }catch(e){} }
+};
+let lang = store.get('lang', (navigator.language||'').toLowerCase().startsWith('fr') ? 'fr' : 'en');
+let cur = store.get('cur', 'CDF');
+let rate = store.get('rate', 2850);
+let products = store.get('products', []);
+let sales = store.get('sales', []);
+let cart = [];
+let pay = 'cash';
+const t = k => (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const save = () => { store.set('products', products); store.set('sales', sales); };
+const DAY = 864e5;
+const startOfDay = d => { const x = new Date(d); x.setHours(0,0,0,0); return x.getTime(); };
+
+function money(cdf, compact){
+  if (cur === 'USD'){
+    const v = cdf / rate;
+    return '$' + v.toLocaleString(t('dateFmt'), {minimumFractionDigits: v < 100 ? 2 : 0, maximumFractionDigits: v < 100 ? 2 : 0});
+  }
+  if (compact && cdf >= 1e6) return (cdf/1e6).toLocaleString(t('dateFmt'), {maximumFractionDigits:1}) + 'M FC';
+  if (compact && cdf >= 1e4) return Math.round(cdf/1e3).toLocaleString(t('dateFmt')) + 'k FC';
+  return Math.round(cdf).toLocaleString(t('dateFmt')) + ' FC';
+}
+function toast(msg){ const el = $('#toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => el.classList.remove('show'), 1900); }
+const saleTotal = s => s.items.reduce((a,i) => a + i.qty*i.price, 0);
+const saleCost  = s => s.items.reduce((a,i) => a + i.qty*(i.cost||0), 0);
+
+/* ---------- Language / currency ---------- */
+function applyLang(){
+  document.documentElement.lang = lang;
+  $$('[data-i]').forEach(el => el.textContent = t(el.dataset.i));
+  $$('[data-ph]').forEach(el => el.placeholder = t(el.dataset.ph));
+  $$('[data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  $$('[data-cur]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cur === cur)));
+  renderAll();
+}
+$$('[data-lang]').forEach(b => b.addEventListener('click', () => { lang = b.dataset.lang; store.set('lang', lang); applyLang(); }));
+$$('[data-cur]').forEach(b => b.addEventListener('click', () => { cur = b.dataset.cur; store.set('cur', cur); applyLang(); }));
+
+/* ---------- Tabs ---------- */
+function showTab(id){
+  $$('[data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === id)));
+  $$('main > section').forEach(s => s.hidden = s.id !== id);
+  store.set('tab', id); window.scrollTo({top:0});
+}
+$$('[data-tab]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+/* ---------- Dashboard ---------- */
+function renderDash(){
+  const now = Date.now(), today = startOfDay(now);
+  const inRange = (a, b) => sales.filter(s => s.t >= a && s.t < b);
+  const todays = inRange(today, today + DAY), yest = inRange(today - DAY, today);
+  const rev = todays.reduce((a,s) => a + saleTotal(s), 0), revY = yest.reduce((a,s) => a + saleTotal(s), 0);
+  const prof = todays.reduce((a,s) => a + saleTotal(s) - saleCost(s), 0);
+  const wk = inRange(today - 6*DAY, today + DAY).reduce((a,s) => a + saleTotal(s), 0);
+  const pwk = inRange(today - 13*DAY, today - 6*DAY).reduce((a,s) => a + saleTotal(s), 0);
+  const pct = (a,b) => b ? ((a-b)/b*100) : null;
+  const fmtPct = p => p == null ? '' : (p >= 0 ? '▲ ' : '▼ ') + Math.abs(p).toFixed(0) + '% ';
+  $('#dashSub').textContent = new Date().toLocaleDateString(t('dateFmt'), {weekday:'long', day:'numeric', month:'long'}) + (cur === 'USD' ? ` · 1 USD = ${rate.toLocaleString(t('dateFmt'))} FC` : '');
+  $('#kRev').textContent = money(rev, true);
+  $('#kRevHint').textContent = revY ? fmtPct(pct(rev, revY)) + t('yesterday') : '';
+  $('#kProfit').textContent = money(prof, true);
+  $('#kMargin').textContent = rev ? Math.round(prof/rev*100) + '% ' + t('margin') : '';
+  $('#kSales').textContent = todays.length;
+  $('#kBasket').textContent = todays.length ? money(rev/todays.length, true) + ' ' + t('avg') : '';
+  $('#kWeek').textContent = money(wk, true);
+  $('#kWeekHint').textContent = pwk ? fmtPct(pct(wk, pwk)) + t('vsPrev') : '';
+
+  // chart
+  const days = [...Array(14)].map((_, i) => today - (13 - i)*DAY);
+  const vals = days.map(d => inRange(d, d + DAY).reduce((a,s) => a + saleTotal(s), 0));
+  const svg = $('#chart'), W = svg.clientWidth || 600, H = 220, pad = {l:8, r:8, t:14, b:22};
+  const max = Math.max(...vals, 1), bw = (W - pad.l - pad.r) / days.length;
+  let out = '';
+  vals.forEach((v, i) => {
+    const h = (H - pad.t - pad.b) * v / max, x = pad.l + i*bw + bw*.14, y = H - pad.b - h, w = bw*.72;
+    const isToday = i === days.length - 1;
+    out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(h, v ? 2 : 0).toFixed(1)}" rx="4" fill="${isToday ? 'var(--amber)' : 'var(--green)'}" opacity="${isToday ? 1 : .85}"><title>${new Date(days[i]).toLocaleDateString(t('dateFmt'), {day:'numeric', month:'short'})}: ${money(v)}</title></rect>`;
+    if (i % 2 === 1 || W > 520) out += `<text x="${(x + w/2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${new Date(days[i]).getDate()}</text>`;
+  });
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = out;
+  $('#chartNote').textContent = vals.some(Boolean) ? 'max ' + money(max, true) : t('noData');
+
+  // low stock
+  const low = products.filter(p => p.stock <= p.min).sort((a,b) => a.stock - b.stock);
+  $('#lowList').innerHTML = low.length ? low.slice(0, 7).map(p => `<li><span>${esc(p.name)}</span><span class="pill ${p.stock <= 0 ? 'low' : 'warn'}">${p.stock <= 0 ? t('out') : p.stock + ' ' + t('left')}</span></li>`).join('') : `<li class="empty">${t('noLow')}</li>`;
+
+  // top sellers & payments
+  const last30 = inRange(today - 29*DAY, today + DAY), byP = {}, byPay = {cash:0, mobile:0, credit:0};
+  last30.forEach(s => { byPay[s.pay || 'cash'] += saleTotal(s); s.items.forEach(i => { byP[i.name] = (byP[i.name] || 0) + i.qty*i.price; }); });
+  const top = Object.entries(byP).sort((a,b) => b[1] - a[1]).slice(0, 5), tmax = top.length ? top[0][1] : 1;
+  $('#topList').innerHTML = top.length ? top.map(([n, v]) => `<li style="display:block"><div style="display:flex;justify-content:space-between"><span>${esc(n)}</span><b>${money(v, true)}</b></div><div class="meter"><i style="width:${(v/tmax*100).toFixed(0)}%"></i></div></li>`).join('') : `<li class="empty">${t('noSales')}</li>`;
+  const ptot = Object.values(byPay).reduce((a,b) => a + b, 0) || 1;
+  $('#payList').innerHTML = Object.entries(byPay).map(([k, v]) => `<li style="display:block"><div style="display:flex;justify-content:space-between"><span>${t(k)}</span><b>${Math.round(v/ptot*100)}%</b></div><div class="meter"><i style="width:${(v/ptot*100).toFixed(0)}%;background:${k === 'credit' ? 'var(--amber)' : k === 'mobile' ? '#3b82f6' : 'var(--green)'}"></i></div></li>`).join('');
+}
+
+/* ---------- Sell ---------- */
+function renderProducts(){
+  const q = ($('#search').value || '').toLowerCase();
+  const list = products.filter(p => p.name.toLowerCase().includes(q));
+  $('#prodGrid').innerHTML = list.length ? list.map(p => {
+    const inCart = (cart.find(c => c.id === p.id) || {}).qty || 0;
+    const left = p.stock - inCart;
+    return `<button class="prod" data-add="${p.id}" ${left <= 0 ? 'disabled' : ''}><b>${esc(p.name)}</b><div class="p">${money(p.price)}</div><div class="s">${left <= 0 ? t('out') : left + ' ' + t('inStock')}</div></button>`;
+  }).join('') : `<p class="empty">${t('noSales')}</p>`;
+}
+function renderCart(){
+  $('#cartRows').innerHTML = cart.length ? cart.map(c => `<div class="cart-row"><span>${esc(c.name)}</span><div class="qty"><button data-dec="${c.id}" aria-label="-">−</button><span>${c.qty}</span><button data-inc="${c.id}" aria-label="+">+</button></div><b>${money(c.qty*c.price)}</b></div>`).join('') : `<p class="empty">${t('emptyCart')}</p>`;
+  $('#cartTotal').textContent = money(cart.reduce((a,c) => a + c.qty*c.price, 0));
+  $('#finish').disabled = !cart.length;
+  renderProducts();
+}
+$('#prodGrid').addEventListener('click', e => {
+  const b = e.target.closest('[data-add]'); if (!b) return;
+  const p = products.find(x => x.id === b.dataset.add); if (!p) return;
+  const c = cart.find(x => x.id === p.id);
+  if (c){ if (c.qty < p.stock) c.qty++; } else cart.push({id:p.id, name:p.name, price:p.price, cost:p.cost, qty:1});
+  renderCart();
+});
+$('#cartRows').addEventListener('click', e => {
+  const inc = e.target.closest('[data-inc]'), dec = e.target.closest('[data-dec]');
+  if (inc){ const c = cart.find(x => x.id === inc.dataset.inc), p = products.find(x => x.id === c.id); if (c.qty < p.stock) c.qty++; }
+  if (dec){ const c = cart.find(x => x.id === dec.dataset.dec); c.qty--; if (c.qty <= 0) cart = cart.filter(x => x !== c); }
+  renderCart();
+});
+$('#search').addEventListener('input', renderProducts);
+$$('[data-pay]').forEach(b => b.addEventListener('click', () => { pay = b.dataset.pay; $$('[data-pay]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); }));
+$('#finish').addEventListener('click', () => {
+  if (!cart.length) return;
+  cart.forEach(c => { const p = products.find(x => x.id === c.id); if (p) p.stock -= c.qty; });
+  sales.push({id:uid(), t:Date.now(), pay, items:cart.map(c => ({pid:c.id, name:c.name, qty:c.qty, price:c.price, cost:c.cost}))});
+  cart = []; save(); renderAll(); toast(t('sold') + ' ✓');
+});
+
+/* ---------- Stock ---------- */
+function renderStock(){
+  $('#stockBody').innerHTML = products.map(p => `<tr data-id="${p.id}">
+    <td><input data-f="name" value="${esc(p.name)}" aria-label="${t('colName')}"></td>
+    <td class="num"><input data-f="price" type="number" min="0" step="50" value="${p.price}" aria-label="${t('colPrice')}"></td>
+    <td class="num"><input data-f="cost" type="number" min="0" step="50" value="${p.cost}" aria-label="${t('colCost')}"></td>
+    <td class="num"><input data-f="stock" type="number" step="1" value="${p.stock}" aria-label="${t('colStock')}"></td>
+    <td class="num"><input data-f="min" type="number" min="0" step="1" value="${p.min}" aria-label="${t('colMin')}"></td>
+    <td style="white-space:nowrap"><span class="pill ${p.stock <= 0 ? 'low' : p.stock <= p.min ? 'warn' : 'ok'}">${p.stock <= 0 ? '0' : p.stock}</span> <button class="icon-btn" data-restock="${p.id}">${t('restock')}</button> <button class="icon-btn" data-del="${p.id}" aria-label="${t('del')}">✕</button></td></tr>`).join('');
+  $('#rate').value = rate;
+}
+$('#stockBody').addEventListener('change', e => {
+  const inp = e.target.closest('[data-f]'); if (!inp) return;
+  const p = products.find(x => x.id === inp.closest('tr').dataset.id), f = inp.dataset.f;
+  p[f] = f === 'name' ? inp.value.trim() || p.name : Math.max(f === 'stock' ? -1e9 : 0, Number(inp.value) || 0);
+  save(); renderAll();
+});
+$('#stockBody').addEventListener('click', e => {
+  const r = e.target.closest('[data-restock]'), d = e.target.closest('[data-del]');
+  if (r){ products.find(x => x.id === r.dataset.restock).stock += 10; save(); renderAll(); }
+  if (d){ products = products.filter(x => x.id !== d.dataset.del); cart = cart.filter(x => x.id !== d.dataset.del); save(); renderAll(); }
+});
+$('#addForm').addEventListener('submit', e => {
+  e.preventDefault(); const f = new FormData(e.target);
+  products.push({id:uid(), name:String(f.get('name')).trim(), price:+f.get('price') || 0, cost:+f.get('cost') || 0, stock:+f.get('stock') || 0, min:+f.get('min') || 3});
+  e.target.reset(); save(); renderAll(); toast(t('added'));
+});
+$('#rate').addEventListener('change', e => { rate = Math.max(1, +e.target.value || 2850); store.set('rate', rate); renderAll(); });
+let resetArmed = false;
+$('#resetBtn').addEventListener('click', e => {
+  if (!resetArmed){ resetArmed = true; e.target.textContent = t('confirmReset'); setTimeout(() => { resetArmed = false; e.target.textContent = t('reset'); }, 3500); return; }
+  products = []; sales = []; cart = []; save(); resetArmed = false; e.target.textContent = t('reset'); renderAll(); toast(t('erased'));
+});
+$('#demoBtn').addEventListener('click', () => { loadDemo(); toast(t('demoLoaded')); showTab('dash'); });
+
+/* ---------- History ---------- */
+function renderHist(){
+  const list = [...sales].sort((a,b) => b.t - a.t);
+  $('#histCount').textContent = list.length + ' ' + t('salesN');
+  $('#histList').innerHTML = list.length ? list.slice(0, 200).map(s => `<div class="sale"><time>${new Date(s.t).toLocaleString(t('dateFmt'), {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</time><span class="items">${s.items.map(i => esc(i.name) + ' ×' + i.qty).join(', ')} · ${t(s.pay || 'cash')}</span><b>${money(saleTotal(s))}</b><button class="icon-btn" data-void="${s.id}">${t('voidBtn')}</button></div>`).join('') : `<p class="empty">${t('noSales')}</p>`;
+}
+$('#histList').addEventListener('click', e => {
+  const v = e.target.closest('[data-void]'); if (!v) return;
+  const s = sales.find(x => x.id === v.dataset.void);
+  s.items.forEach(i => { const p = products.find(x => x.id === i.pid); if (p) p.stock += i.qty; });
+  sales = sales.filter(x => x !== s); save(); renderAll(); toast(t('voided'));
+});
+$('#csvBtn').addEventListener('click', () => {
+  const rows = [['date','time','payment','product','qty','unit_price_cdf','line_total_cdf','unit_cost_cdf']];
+  [...sales].sort((a,b) => a.t - b.t).forEach(s => s.items.forEach(i => { const d = new Date(s.t); rows.push([d.toISOString().slice(0,10), d.toTimeString().slice(0,5), s.pay || 'cash', i.name, i.qty, i.price, i.qty*i.price, i.cost || 0]); }));
+  const csv = rows.map(r => r.map(v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v).join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = 'duka-ledger-sales.csv'; a.click(); URL.revokeObjectURL(a.href);
+});
+
+/* ---------- Demo data ---------- */
+function loadDemo(){
+  const P = [['Sucre 1 kg',3500,2900,40,10],['Riz 5 kg',22000,18500,18,5],['Huile de palme 1 L',4500,3700,25,8],['Farine de maïs 5 kg',15000,12500,12,5],['Savon (barre)',1500,1100,60,15],['Sel 1 kg',1200,800,30,8],['Lait en poudre 400 g',9500,8000,9,6],['Haricots 1 kg',4000,3200,35,10],['Bougies (paquet)',2500,1800,4,6],['Crédit Airtel 1000',1000,930,80,20],['Pâtes 500 g',2000,1500,28,10],['Thé (boîte)',3000,2300,3,5]];
+  products = P.map(([name, price, cost, stock, min]) => ({id:uid(), name, price, cost, stock, min}));
+  let seed = 7; const rnd = () => (seed = (seed*9301 + 49297) % 233280) / 233280;
+  sales = []; const today = startOfDay(Date.now());
+  for (let d = 29; d >= 0; d--){
+    const n = 6 + Math.floor(rnd()*9) + (new Date(today - d*DAY).getDay() === 6 ? 5 : 0);
+    for (let k = 0; k < n; k++){
+      const items = []; const m = 1 + Math.floor(rnd()*3);
+      for (let j = 0; j < m; j++){ const p = products[Math.floor(Math.pow(rnd(), 1.6)*products.length)]; if (!items.find(x => x.pid === p.id)) items.push({pid:p.id, name:p.name, qty:1 + Math.floor(rnd()*3), price:p.price, cost:p.cost}); }
+      const tm = today - d*DAY + (7 + rnd()*12)*36e5;
+      if (tm <= Date.now()) sales.push({id:uid(), t:tm, pay:rnd() < .55 ? 'cash' : rnd() < .8 ? 'mobile' : 'credit', items});
+    }
+  }
+  cart = []; save(); renderAll();
+}
+
+function renderAll(){ renderDash(); renderCart(); renderStock(); renderHist(); }
+window.addEventListener('resize', () => { clearTimeout(renderAll.h); renderAll.h = setTimeout(renderDash, 150); });
+applyLang();
+showTab(store.get('tab', 'dash'));
+if (!store.get('seen', false)){ store.set('seen', true); loadDemo(); setTimeout(() => toast(t('welcome')), 600); }
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
